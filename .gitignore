@@ -1,0 +1,40 @@
+# ── Secrets & Tokens ──
+token.json
+.env
+*.env
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual Environments ──
+venv/
+env/
+.venv/
+
+# ── ML Models (large binary files — share via cloud storage instead) ──
+ml_models/*.pkl
+ml_models/*.joblib
+
+# ── Database ──
+data.db
+*.sqlite3
+
+# ── Streamlit ──
+.streamlit/secrets.toml
+
+# ── OS ──
+.DS_Store
+Thumbs.db
+
+# ── IDE ──
+.vscode/
+.idea/
+*.suo
