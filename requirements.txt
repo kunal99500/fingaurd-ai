@@ -3,24 +3,33 @@ fastapi==0.111.0
 uvicorn[standard]==0.30.1
 python-multipart==0.0.9
 
-# Auth & security
+# Auth
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 
-# Data & ML
+# Database — PostgreSQL async
+sqlalchemy[asyncio]==2.0.30
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+
+# LangGraph + Groq agent
+langgraph>=0.2.0
+langgraph-checkpoint-postgres>=0.1.0
+langchain-core>=0.2.0
+langchain-groq>=0.1.0
+
+# Data + ML (for forecast)
 pydantic==2.7.1
 pandas==2.2.2
 numpy==1.26.4
 scikit-learn==1.5.0
-joblib==1.4.2
-matplotlib==3.9.0
 
-# HTTP clients
+# HTTP
 httpx==0.27.0
 requests==2.32.3
 
-# Database
-sqlalchemy==2.0.30
+# Charts
+matplotlib==3.9.0
 
 # Frontend
 streamlit==1.35.0
@@ -28,5 +37,5 @@ streamlit==1.35.0
 # Email
 mailjet-rest==1.3.4
 
-# Environment
+# Utils
 python-dotenv==1.0.1

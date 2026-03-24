@@ -1,84 +1,117 @@
 # repositories/auth_repository.py
+"""
+Multi-user authentication using PostgreSQL.
+Every user is stored in the DB — no in-memory lists.
+"""
+
 import os
 import random
 from datetime import datetime, timedelta
 from typing import Optional
-
 from jose import jwt
 from passlib.context import CryptContext
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
-# ✅ Read secret from environment — never hardcode in production
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-in-production-please")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
-
-# In-memory user store
-users_db = []
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-in-production")
+ALGORITHM  = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def generate_otp() -> str:
-    return str(random.randint(100000, 999999))
-
-
-def create_user(email: str, phone: str, password: str, verify_method: str = "email") -> dict:
-    """Register a new user. Raises ValueError on duplicate."""
-    for u in users_db:
-        if email and u.get("email") == email:
+async def create_user(db: AsyncSession, email: str, phone: str, password: str, verify_method: str = "email") -> dict:
+    if email:
+        res = await db.execute(text("SELECT id FROM users WHERE email = :e"), {"e": email})
+        if res.fetchone():
             raise ValueError("Email already registered.")
-        if phone and u.get("phone") == phone:
+    if phone:
+        res = await db.execute(text("SELECT id FROM users WHERE phone = :p"), {"p": phone})
+        if res.fetchone():
             raise ValueError("Phone already registered.")
 
-    password = (password or "").strip()[:72]
-    otp = generate_otp()
+    otp       = str(random.randint(100000, 999999))
+    hashed_pw = pwd_context.hash(password.strip()[:72])
 
-    user = {
-        "user_id": len(users_db) + 1,
-        "email": email or "",
-        "phone": phone or "",
-        "password": pwd_context.hash(password),
-        "verified": False,
-        "otp": otp,
-        "method": verify_method,
-    }
-    users_db.append(user)
+    res = await db.execute(text("""
+        INSERT INTO users (email, phone, password, verified, method, otp, created_at)
+        VALUES (:email, :phone, :password, false, :method, :otp, NOW())
+        RETURNING id, email, phone, method
+    """), {"email": email or "", "phone": phone or "", "password": hashed_pw, "method": verify_method, "otp": otp})
+    await db.commit()
+    row = res.fetchone()
     print(f"📩 OTP for {verify_method} ({email or phone}): {otp}")
-    return user
+    return {"user_id": str(row.id), "email": row.email, "phone": row.phone, "otp": otp}
 
 
-def verify_user(contact: str) -> Optional[dict]:
-    """Mark user as verified after OTP check."""
-    for user in users_db:
-        if user.get("email") == contact or user.get("phone") == contact:
-            user["verified"] = True
-            user.pop("otp", None)
-            return user
-    return None
+async def verify_user_otp(db: AsyncSession, contact: str, otp: str) -> bool:
+    res = await db.execute(
+        text("SELECT id, otp FROM users WHERE (email = :c OR phone = :c) AND verified = false"),
+        {"c": contact}
+    )
+    row = res.fetchone()
+    if not row or row.otp != otp:
+        return False
+    await db.execute(text("UPDATE users SET verified = true, otp = null WHERE id = :uid"), {"uid": row.id})
+    await db.commit()
+    return True
 
 
-def authenticate_user(email: str = "", phone: str = "", password: str = "") -> Optional[dict]:
-    """Authenticate by email or phone + password."""
-    for user in users_db:
-        contact_match = (
-            (email and user.get("email") == email) or
-            (phone and user.get("phone") == phone)
-        )
-        if contact_match and pwd_context.verify(password.strip()[:72], user["password"]):
-            return user
-    return None
+async def authenticate_user(db: AsyncSession, email: str = "", phone: str = "", password: str = "") -> Optional[dict]:
+    res = await db.execute(
+        text("SELECT id, email, phone, password, verified FROM users WHERE email = :e OR phone = :p LIMIT 1"),
+        {"e": email or "", "p": phone or ""}
+    )
+    row = res.fetchone()
+    if not row:
+        return None
+    if not pwd_context.verify(password.strip()[:72], row.password):
+        return None
+    if not row.verified:
+        return {"error": "not_verified"}
+    return {"user_id": str(row.id), "email": row.email, "phone": row.phone}
+
+
+async def get_user_by_token(db: AsyncSession, token: str) -> Optional[dict]:
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+    sub = payload.get("sub")
+    res = await db.execute(
+        text("SELECT id, email, phone FROM users WHERE email = :s OR phone = :s"),
+        {"s": sub}
+    )
+    row = res.fetchone()
+    if not row:
+        return None
+    return {"user_id": str(row.id), "email": row.email, "phone": row.phone}
+
+
+async def save_user_gmail(db: AsyncSession, user_id: str, gmail_user: str, gmail_app_password: str):
+    await db.execute(text("""
+        INSERT INTO user_settings (user_id, gmail_user, gmail_app_password)
+        VALUES (:uid, :gu, :gp)
+        ON CONFLICT (user_id) DO UPDATE SET gmail_user = :gu, gmail_app_password = :gp
+    """), {"uid": user_id, "gu": gmail_user, "gp": gmail_app_password})
+    await db.commit()
+
+
+async def get_user_gmail(db: AsyncSession, user_id: str) -> tuple:
+    res = await db.execute(
+        text("SELECT gmail_user, gmail_app_password FROM user_settings WHERE user_id = :uid"),
+        {"uid": user_id}
+    )
+    row = res.fetchone()
+    return (row.gmail_user or "", row.gmail_app_password or "") if row and row.gmail_user else ("", "")
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Generate a signed JWT token."""
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode["exp"] = expire
+    to_encode["exp"] = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def decode_access_token(token: str) -> Optional[dict]:
-    """Decode and validate a JWT token. Returns payload or None."""
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except Exception:

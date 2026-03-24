@@ -1,58 +1,67 @@
-from schemas import transaction
+import os
 import joblib
 import pandas as pd
 from datetime import datetime
+from schemas import transaction
+from state import transactions_db, user_settings
 
-# In-memory "database"
-transactions_db = []
-cat_model = joblib.load(r"C:\myapp\ml_models\transaction_category_model.pkl")
-sub_model = joblib.load(r"C:\myapp\ml_models\transaction_subcategory_model.pkl")
+# ✅ AI categorization replaces ML model — no .pkl needed
+# Category is now handled by the LangGraph agent (categorizer node)
+# This repository is kept for legacy REST API endpoints only
 
-def create_transaction(txns, user_settings):
+def create_transaction(txns, settings_map):
     created_txns = []
-    for txn in txns:
-        txn_df = pd.DataFrame([{
-            "Merchant": txn.Merchant,
-            "Amount": txn.Amount,
-            "Payment_Type": txn.Type_of_Payment or "Card"
-        }])
+    today_str = datetime.now().strftime("%Y-%m-%d")
 
-        txn.Category = cat_model.predict(txn_df)[0]
-        txn.Sub_Category = sub_model.predict(txn_df)[0]
-        txn.Date = txn.Date or datetime.now().strftime("%Y-%m-%d")
+    for txn in txns:
+        # Category comes from the request directly (set by agent or user)
+        txn.Date = txn.Date or today_str
         txn.Time = txn.Time or datetime.now().strftime("%H:%M:%S")
 
-        if txn.User_Id in user_settings:
-            settings = user_settings[txn.User_Id]
+        if txn.User_Id in settings_map:
+            settings = settings_map[txn.User_Id]
             start_month = datetime.now().replace(day=1).strftime("%Y-%m-%d")
-            user_monthly_txns = [
-                t for t in transactions_db if t.User_Id == txn.User_Id and t.Date >= start_month
-            ]
-            monthly_spent = sum(abs(t.Amount) for t in user_monthly_txns if t.Amount < 0)
-
+            monthly_spent = sum(
+                abs(t.Amount) for t in transactions_db
+                if t.User_Id == txn.User_Id and t.Date >= start_month and t.Amount < 0
+            )
             if settings.Monthly_Limit and (monthly_spent + abs(txn.Amount)) > settings.Monthly_Limit:
                 txn.Over_Threshold = True
                 if settings.Block_Transactions:
                     txn.Blocked = True
-                    txn.Notes = f"Transaction blocked! Exceeded monthly limit ₹{settings.Monthly_Limit}."
+                    txn.Notes = f"🚫 Blocked: monthly limit ₹{settings.Monthly_Limit} exceeded."
                     continue
-                else:
-                    txn.Notes = f"Warning: Monthly budget exceeded ₹{settings.Monthly_Limit}."
+
+            if settings.Daily_Limit:
+                today_spent = sum(
+                    abs(t.Amount) for t in transactions_db
+                    if t.User_Id == txn.User_Id and t.Date == today_str and t.Amount < 0
+                )
+                if (today_spent + abs(txn.Amount)) > settings.Daily_Limit:
+                    txn.Over_Threshold = True
+                    if settings.Block_Transactions:
+                        txn.Blocked = True
+                        txn.Notes = f"🚫 Blocked: daily limit ₹{settings.Daily_Limit} exceeded."
+                        continue
 
         transactions_db.append(txn)
         created_txns.append(txn)
 
-    return {"message": "Transaction(s) added", "transactions": created_txns}
+    return {"message": "Transaction(s) processed", "transactions": created_txns}
 
-def get_transactions():
+
+def get_transactions(user_id: float = None):
+    if user_id:
+        return [t for t in transactions_db if t.User_Id == user_id]
     return transactions_db
 
+
 def update_transaction(transaction_id: int, updated_txn: transaction):
-    for i, txn in enumerate(transactions_db):
-        if i == transaction_id:
-            transactions_db[i] = updated_txn
-            return {"message": "Transaction updated", "transaction": updated_txn}
+    if 0 <= transaction_id < len(transactions_db):
+        transactions_db[transaction_id] = updated_txn
+        return {"message": "Transaction updated", "transaction": updated_txn}
     return {"error": "Transaction not found"}
+
 
 def delete_transaction(transaction_id: int):
     if 0 <= transaction_id < len(transactions_db):

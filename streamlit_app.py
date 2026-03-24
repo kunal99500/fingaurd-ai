@@ -253,7 +253,32 @@ def dashboard_page():
             "📈 Investment Tips",
             "📰 Market News",
             "🚨 Anomaly Report",
+            "📧 Gmail Settings",
         ])
+        st.markdown("---")
+        st.markdown("---")
+        st.markdown("**📧 Gmail Auto-Sync**")
+        gmail_status = api("/gmail/status", method="GET")
+        if gmail_status and gmail_status.status_code == 200:
+            gs = gmail_status.json()
+            if gs.get("gmail_connected"):
+                st.caption(f"✅ {gs.get('gmail_user')}")
+                if gs.get("auto_sync_active"):
+                    st.caption("🔁 Auto-sync active")
+                if st.button("🔄 Sync Now", use_container_width=True):
+                    res = api("/gmail/sync", method="POST")
+                    if res and res.status_code == 200:
+                        count = res.json().get("transactions_found", 0)
+                        st.success(f"Found {count} new transaction(s)!" if count else "No new transactions.")
+                    else:
+                        err = res.json().get("detail", "Sync failed") if res else "No response"
+                        st.error(f"❌ {err}")
+            else:
+                st.caption("⚠️ Gmail not connected")
+                if st.button("🔗 Connect Gmail", use_container_width=True):
+                    st.session_state.page_override = "gmail_connect"
+                    st.rerun()
+
         st.markdown("---")
         if st.button("🚪 Logout"):
             clear_token()
@@ -571,18 +596,25 @@ def dashboard_page():
     # PAGE: AI CHAT ADVISOR
     # ════════════════════════════════════
     elif page == "💬 AI Chat Advisor":
-        st.title("💬 AI Financial Advisor")
-        st.markdown("Ask me anything about your spending, savings, or investments!")
+        st.title("💬 FinGuard AI Agent")
+        st.markdown("Powered by **LangGraph + Groq** — Ask anything, add transactions, check budget, get investment tips!")
 
-        # Init chat history in session state
+        # Init session state
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = []
+        if "agent_session_id" not in st.session_state:
+            import uuid
+            st.session_state.agent_session_id = f"session-{user_id}-{uuid.uuid4().hex[:8]}"
+
+        session_id = st.session_state.agent_session_id
+        st.caption(f"Session: `{session_id}` — memory persists across logins")
 
         # Display conversation
         for msg in st.session_state.chat_history:
-            role = msg["role"]
-            with st.chat_message(role):
+            with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
+                if msg.get("intent"):
+                    st.caption(f"🧠 Intent: `{msg['intent']}`")
 
         # Quick starter prompts
         if not st.session_state.chat_history:
@@ -590,9 +622,11 @@ def dashboard_page():
             cols = st.columns(2)
             starters = [
                 "How am I doing this month?",
+                "I spent ₹250 on Zomato via UPI",
                 "Can I afford to spend ₹500 today?",
+                "Give me investment tips",
+                "Show market news",
                 "Where am I spending the most?",
-                "Give me a savings plan for next month",
             ]
             for i, starter in enumerate(starters):
                 with cols[i % 2]:
@@ -600,44 +634,40 @@ def dashboard_page():
                         st.session_state.pending_chat = starter
                         st.rerun()
 
+        def call_agent(message):
+            payload = {"message": message, "session_id": session_id}
+            res = api("/agent/run", payload)
+            if res and res.status_code == 200:
+                data = res.json()
+                return data.get("response", "No response"), data.get("intent", ""), data.get("blocked", False)
+            return "❌ Could not reach the agent. Make sure the backend is running.", "", False
+
         # Handle starter button clicks
         if "pending_chat" in st.session_state:
             user_msg = st.session_state.pop("pending_chat")
             with st.chat_message("user"):
                 st.markdown(user_msg)
-
             with st.chat_message("assistant"):
-                with st.spinner("Thinking..."):
-                    payload = {
-                        "user_id": user_id,
-                        "message": user_msg,
-                        "history": st.session_state.chat_history
-                    }
-                    res = api("/chat/", payload)
-                    if res and res.status_code == 200:
-                        reply = res.json().get("reply", "Sorry, I couldn't get a response.")
-                    else:
-                        reply = "❌ Could not reach AI advisor. Make sure the backend is running."
+                with st.spinner("Agent thinking..."):
+                    reply, intent, blocked = call_agent(user_msg)
                     st.markdown(reply)
-
+                    if intent: st.caption(f"🧠 Intent: `{intent}`")
+                    if blocked: st.error("🚫 Transaction was blocked by budget guard!")
             st.session_state.chat_history.append({"role": "user", "content": user_msg})
-            st.session_state.chat_history.append({"role": "assistant", "content": reply})
+            st.session_state.chat_history.append({"role": "assistant", "content": reply, "intent": intent})
             st.rerun()
 
         # Chat input
-        user_input = st.chat_input("Ask your AI financial advisor...")
+        user_input = st.chat_input("Ask the agent — add a transaction, check budget, get tips...")
         if user_input:
             with st.chat_message("user"):
                 st.markdown(user_input)
-
             with st.chat_message("assistant"):
-                with st.spinner("Thinking..."):
-                    payload = {
-                        "user_id": user_id,
-                        "message": user_input,
-                        "history": st.session_state.chat_history
-                    }
-                    res = api("/chat/", payload)
+                with st.spinner("Agent thinking..."):
+                    reply, intent, blocked = call_agent(user_input)
+                    res = None  # suppress old code below
+                    if res and res.status_code == 200:
+                        pass
                     if res and res.status_code == 200:
                         reply = res.json().get("reply", "Sorry, I couldn't get a response.")
                     else:
@@ -682,7 +712,63 @@ def dashboard_page():
         else:
             st.warning("Could not fetch anomaly report.")
 
-    st.markdown("<div style='text-align:center;margin-top:30px;color:rgba(255,255,255,0.4)'>© FinGuard AI — by Kunal Malik</div>", unsafe_allow_html=True)
+    # ════════════════════════════════════
+    # PAGE: GMAIL SETTINGS
+    # ════════════════════════════════════
+    elif page == "📧 Gmail Settings" or st.session_state.get("page_override") == "gmail_connect":
+        st.session_state.pop("page_override", None)
+        st.title("📧 Connect Your Gmail")
+        st.markdown("Connect your Gmail to **automatically detect bank and UPI transactions** from your emails.")
+
+        st.info("FinGuard reads only transaction emails from your bank. Your emails stay private.")
+
+        st.markdown("### Step 1 — Enable Gmail App Password")
+        st.markdown("""
+1. Go to [myaccount.google.com/security](https://myaccount.google.com/security)
+2. Enable **2-Step Verification**
+3. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+4. Select **Mail** → **Windows** → **Generate**
+5. Copy the 16-character password
+        """)
+
+        st.markdown("### Step 2 — Enter your credentials")
+        st.markdown("<div class='glass-box'>", unsafe_allow_html=True)
+        gmail_user = st.text_input("Gmail address", placeholder="yourname@gmail.com")
+        gmail_pass = st.text_input("Gmail App Password (16 chars)", type="password", placeholder="xxxx xxxx xxxx xxxx")
+
+        if st.button("🔗 Connect Gmail", use_container_width=True):
+            if gmail_user and gmail_pass:
+                res = api("/gmail/connect", {"gmail_user": gmail_user, "gmail_app_password": gmail_pass})
+                if res and res.status_code == 200:
+                    st.success(f"✅ Gmail connected! Your transactions will now be auto-detected.")
+                    # Trigger first sync
+                    sync_res = api("/gmail/sync", method="POST")
+                    if sync_res and sync_res.status_code == 200:
+                        count = sync_res.json().get("transactions_found", 0)
+                        if count:
+                            st.success(f"🎉 Found {count} transaction(s) from your emails!")
+                else:
+                    st.error(f"❌ {res.json().get('detail', 'Connection failed') if res else 'No response'}")
+            else:
+                st.warning("Please fill in both fields.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        st.markdown("### Supported banks & apps")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown("✅ SBI")
+            st.markdown("✅ HDFC")
+            st.markdown("✅ ICICI")
+        with col2:
+            st.markdown("✅ Axis")
+            st.markdown("✅ Kotak")
+            st.markdown("✅ PhonePe")
+        with col3:
+            st.markdown("✅ Google Pay")
+            st.markdown("✅ Paytm")
+            st.markdown("✅ Amazon Pay")
+
+        st.markdown("<div style='text-align:center;margin-top:30px;color:rgba(255,255,255,0.4)'>© FinGuard AI — by Kunal Malik</div>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────
