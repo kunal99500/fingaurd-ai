@@ -28,8 +28,16 @@ async def forecast_spending(user_id: str) -> dict:
     Forecast next 7 days spending using linear regression on past transactions.
     Returns trend direction, average daily spend, and per-day predictions.
     """
-    import numpy as np
-    from sklearn.linear_model import LinearRegression
+    # Pure Python linear regression — no dependencies needed
+    def _simple_linear_regression(x, y):
+        n = len(x)
+        x_mean = sum(x) / n
+        y_mean = sum(y) / n
+        numerator = sum((x[i] - x_mean) * (y[i] - y_mean) for i in range(n))
+        denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
+        slope = numerator / denominator if denominator != 0 else 0
+        intercept = y_mean - slope * x_mean
+        return slope, intercept
 
     engine = _get_engine()
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
