@@ -1,20 +1,14 @@
 import os
-import joblib
-import pandas as pd
 from datetime import datetime
 from schemas import transaction
 from state import transactions_db, user_settings
 
-# ✅ AI categorization replaces ML model — no .pkl needed
-# Category is now handled by the LangGraph agent (categorizer node)
-# This repository is kept for legacy REST API endpoints only
 
 def create_transaction(txns, settings_map):
     created_txns = []
     today_str = datetime.now().strftime("%Y-%m-%d")
 
     for txn in txns:
-        # Category comes from the request directly (set by agent or user)
         txn.Date = txn.Date or today_str
         txn.Time = txn.Time or datetime.now().strftime("%H:%M:%S")
 
@@ -29,7 +23,7 @@ def create_transaction(txns, settings_map):
                 txn.Over_Threshold = True
                 if settings.Block_Transactions:
                     txn.Blocked = True
-                    txn.Notes = f"🚫 Blocked: monthly limit ₹{settings.Monthly_Limit} exceeded."
+                    txn.Notes = f"Blocked: monthly limit exceeded."
                     continue
 
             if settings.Daily_Limit:
@@ -41,7 +35,7 @@ def create_transaction(txns, settings_map):
                     txn.Over_Threshold = True
                     if settings.Block_Transactions:
                         txn.Blocked = True
-                        txn.Notes = f"🚫 Blocked: daily limit ₹{settings.Daily_Limit} exceeded."
+                        txn.Notes = f"Blocked: daily limit exceeded."
                         continue
 
         transactions_db.append(txn)
