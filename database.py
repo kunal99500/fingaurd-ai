@@ -32,7 +32,8 @@ engine = create_async_engine(
     pool_pre_ping=True,
     connect_args={
         "ssl": "require",
-        "statement_cache_size": 0,  # ✅ fixes pgbouncer conflict
+        "prepared_statement_cache_size": 0,  # ✅ correct parameter name
+        "statement_cache_size": 0,
     },
 )
 AsyncSessionLocal = async_sessionmaker(
