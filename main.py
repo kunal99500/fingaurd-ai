@@ -6,11 +6,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database import init_db
+from models_family import FamilyGroup, ParentSettings, EmergencyOTP, ParentNotification
 from routers import (
     auth_router, notification_router, transaction_router,
     summary_router, anomaly_router, budget_router,
     payment_router, insights_router, agent_router,
 )
+from routers import family_router
 
 
 @asynccontextmanager
@@ -47,7 +49,7 @@ app.include_router(anomaly_router.router,      prefix="/anomaly",        tags=["
 app.include_router(payment_router.router,                                tags=["Payments"])
 app.include_router(notification_router.router, prefix="/notifications",  tags=["Notifications"])
 app.include_router(agent_router.router,        prefix="/agent",          tags=["AI Agent"])
-
+app.include_router(family_router.router,       prefix="/family",         tags=["Family"])
 
 @app.get("/")
 def root():
