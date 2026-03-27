@@ -13,6 +13,7 @@ from routers import (
     payment_router, insights_router, agent_router,
 )
 from routers import family_router
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -32,11 +33,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:8081",
+        "http://localhost:3000",
+        "http://127.0.0.1:8081",
+        "https://fingaurd-ai.onrender.com",
+        "*"
+    ],
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
