@@ -6,6 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from database import init_db
+# Import all models so SQLAlchemy registers them before init_db
+from models import User, UserSettings, Transaction, Notification, ChatSession, ChatMessage
+from models_family import FamilyGroup, ParentSettings, EmergencyOTP, ParentNotification
 from models_family import FamilyGroup, ParentSettings, EmergencyOTP, ParentNotification
 from routers import (
     auth_router, notification_router, transaction_router,
@@ -19,10 +22,14 @@ from fastapi.middleware.cors import CORSMiddleware
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ── Startup ──
-    await init_db()          # create all PostgreSQL tables
-    print("✅ Database tables ready")
+    try:
+        from models import User, UserSettings, Transaction, Notification, ChatSession, ChatMessage
+        from models_family import FamilyGroup, ParentSettings, EmergencyOTP, ParentNotification
+        await init_db()
+        print("✅ Database tables ready")
+    except Exception as e:
+        print(f"❌ Database init error: {e}")
     yield
-    # ── Shutdown ──
     print("👋 Shutting down")
 
 
