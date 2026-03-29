@@ -3,7 +3,7 @@
 Multi-user authentication using PostgreSQL.
 Every user is stored in the DB — no in-memory lists.
 """
-
+import uuid
 import os
 import random
 from datetime import datetime, timedelta
@@ -36,13 +36,25 @@ async def create_user(db: AsyncSession, email: str, phone: str, password: str, v
             raise ValueError("Phone already registered.")
 
     otp       = str(random.randint(100000, 999999))
-    hashed_pw = pwd_context.hash(password.strip()[:72])
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+      password = password_bytes[:72].decode('utf-8', errors='ignore')
+    hashed_pw = pwd_context.hash(password.strip())
+
+    
 
     res = await db.execute(text("""
-        INSERT INTO users (email, phone, password, verified, method, otp, created_at)
-        VALUES (:email, :phone, :password, false, :method, :otp, NOW())
-        RETURNING id, email, phone, method
-    """), {"email": email or "", "phone": phone or "", "password": hashed_pw, "method": verify_method, "otp": otp})
+    INSERT INTO users (id, email, phone, password, verified, method, otp, created_at)
+    VALUES (:id, :email, :phone, :password, false, :method, :otp, NOW())
+    RETURNING id, email, phone, method
+"""), {
+    "id": str(uuid.uuid4()),
+    "email": email or "",
+    "phone": phone or "",
+    "password": hashed_pw,
+    "method": verify_method,
+    "otp": otp
+})
     await db.commit()
     row = res.fetchone()
     print(f"📩 OTP for {verify_method} ({email or phone}): {otp}")
