@@ -41,7 +41,11 @@ async def signup(req: SignupRequest, db: AsyncSession = Depends(get_db)):
 
     contact = req.email if req.method.lower() == "email" else req.phone
     send_otp(contact)
-    return {"message": f"OTP sent to your {req.method}. Please verify.", "user_id": user["user_id"]}
+    return {
+        "message": f"OTP sent to your {req.method}. Please verify.",
+        "user_id": user["user_id"],
+        "otp": user["otp"]  # ← show OTP in response for testing
+    }
 
 
 @router.post("/verify-otp")
