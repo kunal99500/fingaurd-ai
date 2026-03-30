@@ -23,8 +23,8 @@ from fastapi.middleware.cors import CORSMiddleware
 async def lifespan(app: FastAPI):
     # Debug env vars
     import os
-    groq_key = os.getenv("GROQ_API_KEY", "NOT SET")
-    print(f"🔑 GROQ_API_KEY: {groq_key[:10] if groq_key != 'NOT SET' else 'NOT SET'}...")
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "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")
+    print(f"🔑 GROQ_API_KEY: {GROQ_API_KEY[:10] if GROQ_API_KEY != 'NOT SET' else 'NOT SET'}...")
     try:
         from models import User, UserSettings, Transaction, Notification, ChatSession, ChatMessage
         from models_family import FamilyGroup, ParentSettings, EmergencyOTP, ParentNotification
