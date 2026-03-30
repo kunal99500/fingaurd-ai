@@ -6,7 +6,7 @@ router = APIRouter()
 
 
 @router.post("/set_settings")
-def update_user_settings(user_id: float, settings: dict):
+def update_user_settings(user_id: str, settings: dict):
     try:
         from schemas import User_Settings
         settings_obj = User_Settings(**settings)
@@ -16,7 +16,7 @@ def update_user_settings(user_id: float, settings: dict):
 
 
 @router.get("/threshold_report")
-def threshold_report(user_id: float):
+def threshold_report(user_id: str):
     try:
         return get_threshold_report(user_id)
     except Exception as e:
