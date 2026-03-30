@@ -19,25 +19,14 @@ _graph = None
 
 
 async def build_graph():
-    # PostgreSQL checkpointer — persists memory in Supabase
-    pg_url = DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
-    checkpointer = AsyncPostgresSaver.from_conn_string(pg_url)
-    await checkpointer.setup()
-
     graph = StateGraph(AgentState)
-
-    # Register nodes
     graph.add_node("supervisor",       supervisor_node)
     graph.add_node("categorizer",      categorizer_node)
     graph.add_node("budget_guard",     budget_guard_node)
     graph.add_node("insights_agent",   insights_node)
     graph.add_node("investment_agent", investment_node)
     graph.add_node("chat_agent",       chat_node)
-
-    # Entry point
     graph.set_entry_point("supervisor")
-
-    # Supervisor routes conditionally
     graph.add_conditional_edges(
         "supervisor",
         route_after_supervisor,
@@ -49,12 +38,9 @@ async def build_graph():
             "chat_agent":       "chat_agent",
         }
     )
-
-    # All agents end after responding
     for node in ["categorizer", "budget_guard", "insights_agent", "investment_agent", "chat_agent"]:
         graph.add_edge(node, END)
-
-    return graph.compile(checkpointer=checkpointer)
+    return graph.compile()
 
 
 async def get_graph():
