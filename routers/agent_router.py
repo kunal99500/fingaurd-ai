@@ -30,6 +30,9 @@ async def run_agent_endpoint(req: AgentRequest, user: dict = Depends(get_current
     try:
         result = await run_agent(user_id=user_id, session_id=session_id, user_input=req.message)
     except Exception as e:
+        import traceback
+        print(f"❌ AGENT ERROR: {str(e)}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Agent error: {str(e)}")
     return AgentResponse(
         response=result.get("response", ""),
