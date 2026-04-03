@@ -15,7 +15,7 @@ from services.family_service import (
     verify_emergency_otp,
 )
 
-router = APIRouter(prefix="/family", tags=["Family"])
+router = APIRouter(prefix="", tags=["Family"])
 
 
 class LinkRequest(BaseModel):
