@@ -13,7 +13,7 @@ from agent.state import AgentState
 from agent.tools.budget_tools import check_limits
 from agent.tools.transaction_tools import save_transaction
 
-GROQ_API_KEY = os.getenv('GROQ_API_KEY', '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')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 
 
 def _llm(temp=0.0):

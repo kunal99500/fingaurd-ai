@@ -11,7 +11,7 @@ from agent.state import AgentState
 from agent.tools.transaction_tools import get_spending_summary
 from agent.tools.insights_tools import forecast_spending, get_anomalies
 
-GROQ_API_KEY = os.getenv('GROQ_API_KEY', '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')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 
 SYSTEM_PROMPT = """You are FinGuard AI, a smart financial analyst.
 Analyze the spending data provided and give clear, specific insights.

@@ -11,7 +11,7 @@ from agent.state import AgentState
 from agent.tools.budget_tools import get_budget_health
 from agent.tools.transaction_tools import get_spending_summary
 
-GROQ_API_KEY = os.getenv('GROQ_API_KEY', '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')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 
 SYSTEM_PROMPT = """You are FinGuard AI, a friendly personal finance advisor for Indian students.
 Explain the user's budget status clearly using the data provided.

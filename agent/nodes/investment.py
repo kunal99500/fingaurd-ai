@@ -11,7 +11,7 @@ from agent.state import AgentState
 from agent.tools.budget_tools import get_budget_health
 from agent.tools.news_tools import fetch_market_news, get_investment_tips
 
-GROQ_API_KEY = os.getenv('GROQ_API_KEY', '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')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 
 SYSTEM_PROMPT = """You are FinGuard AI, a friendly investment advisor for Indian students and young earners.
 Based on the user's savings and current market news, give specific, beginner-friendly advice.
