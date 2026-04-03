@@ -73,3 +73,9 @@ app.include_router(family_router.router,       prefix="/family",         tags=["
 @app.get("/")
 def root():
     return {"message": "FinGuard AI v3.0 running ✅", "docs": "/docs"}
+
+@app.get("/test-env")
+def test_env():
+    import os
+    key = os.getenv("GROQ_API_KEY", "NOT FOUND")
+    return {"groq_key_set": key != "NOT FOUND", "first_chars": key[:8] if key != "NOT FOUND" else "none"}
