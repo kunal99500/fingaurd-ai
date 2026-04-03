@@ -77,5 +77,5 @@ def root():
 @app.get("/test-env")
 def test_env():
     import os
-    key = os.getenv("GROQ_API_KEY", "NOT FOUND")
+    key = os.getenv("GROQ_API_KEY", "NOT FOUND"); test = os.getenv("TEST_VAR", "NOT FOUND")
     return {"groq_key_set": key != "NOT FOUND", "first_chars": key[:8] if key != "NOT FOUND" else "none"}
