@@ -12,7 +12,7 @@ from agent.state import AgentState
 from agent.tools.budget_tools import get_budget_health
 from agent.tools.transaction_tools import get_spending_summary, get_recent_transactions
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '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')
 
 
 async def chat_node(state: AgentState) -> AgentState:
@@ -21,7 +21,7 @@ async def chat_node(state: AgentState) -> AgentState:
     with full context of the user's financial situation.
     Conversation history flows through LangGraph state.
     """
-    llm     = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.6, api_key=GROQ_API_KEY)
+    llm     = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.6, )
     user_id = state["user_id"]
 
     # Fetch live financial context

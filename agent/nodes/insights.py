@@ -11,7 +11,7 @@ from agent.state import AgentState
 from agent.tools.transaction_tools import get_spending_summary
 from agent.tools.insights_tools import forecast_spending, get_anomalies
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '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')
 
 SYSTEM_PROMPT = """You are FinGuard AI, a smart financial analyst.
 Analyze the spending data provided and give clear, specific insights.
@@ -26,7 +26,7 @@ async def insights_node(state: AgentState) -> AgentState:
     Fetches monthly + weekly summaries, forecasts, and anomaly data,
     then uses Groq to generate a natural language insights report.
     """
-    llm        = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.4, api_key=GROQ_API_KEY)
+    llm        = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.4, )
     user_id    = state["user_id"]
     user_input = state["user_input"]
 

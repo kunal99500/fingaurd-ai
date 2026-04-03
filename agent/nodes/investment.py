@@ -11,7 +11,7 @@ from agent.state import AgentState
 from agent.tools.budget_tools import get_budget_health
 from agent.tools.news_tools import fetch_market_news, get_investment_tips
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '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')
 
 SYSTEM_PROMPT = """You are FinGuard AI, a friendly investment advisor for Indian students and young earners.
 Based on the user's savings and current market news, give specific, beginner-friendly advice.
@@ -26,7 +26,7 @@ async def investment_node(state: AgentState) -> AgentState:
     Fetches user's savings amount, investment tips, and live market news,
     then uses Groq to generate a personalized investment recommendation.
     """
-    llm        = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.5, api_key=GROQ_API_KEY)
+    llm        = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.5, )
     user_id    = state["user_id"]
     user_input = state["user_input"]
 

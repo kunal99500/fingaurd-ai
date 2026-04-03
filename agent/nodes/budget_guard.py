@@ -11,7 +11,7 @@ from agent.state import AgentState
 from agent.tools.budget_tools import get_budget_health
 from agent.tools.transaction_tools import get_spending_summary
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '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')
 
 SYSTEM_PROMPT = """You are FinGuard AI, a friendly personal finance advisor for Indian students.
 Explain the user's budget status clearly using the data provided.
@@ -24,7 +24,7 @@ async def budget_guard_node(state: AgentState) -> AgentState:
     Fetches budget health + monthly summary from PostgreSQL,
     then asks Groq to explain it in plain language.
     """
-    llm        = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.4, api_key=GROQ_API_KEY)
+    llm        = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.4, )
     user_id    = state["user_id"]
     user_input = state["user_input"]
 
